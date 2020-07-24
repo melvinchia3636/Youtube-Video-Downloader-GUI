@@ -11,3 +11,6 @@ update 4/5/2020
 update 8/5/2020
   - an error message will now be shown if user don't have Internet connection
   - reduced some lags
+
+update 24/7/2020
+  - major bug fixing
