@@ -14,3 +14,6 @@ update 8/5/2020
 
 update 24/7/2020
   - major bug fixing
+  - webscrapping module have been changed to selenium webdriver instead of requests
+  - lag when press search button has been fixed
+  - added status bar when searching for video
