@@ -3,45 +3,60 @@ from tkinter.font import Font #import this to make the font look cooler
 import tkinter.messagebox as ms
 import tkinter.ttk as ttk #for the progressbar ONLY
 from PIL import ImageTk, Image #import this to load the image
-from bs4 import BeautifulSoup #to scrape data from Youtube
-import urllib.request #to request youtube data
 from pytube import YouTube #to download Youtube data
 import ctypes #to show message box
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from time import sleep
 import requests
+import threading
 
 #get the videos data from youtube
 def SearchVid(search):
-    root.update()
-    global main_data 
-    main_data = {} 
-    vid_id = 0 
-
-    root.update()
-    divs = BeautifulSoup(urllib.request.urlopen('https://www.youtube.com/results?search_query='+'+'.join(list(search.split()))),'html.parser').find_all("div", { "class" : "yt-lockup-content"})
-    root.update()
-    if len(divs)==0:
-        return 'failed to request'
     
-    for i in divs:
-        root.update()
-        href= i.find('a', href=True)
-        if len(list(href.text))>30:
-            root.update()
-            href2 = ''.join(list(i.find('a', href=True).text)[:30])+'...' 
-        else:
-            root.update()
-            href2 = ''.join(list(i.find('a', href=True).text))
-        uploader= i.find('a', { "class" : "yt-uix-sessionlink spf-link"}, href=True)
-        if len("https://www.youtube.com"+href['href'])==43 :
-            root.update()
-            try:
-                main_data[str(vid_id)] = { 
-                    'url' : "https://www.youtube.com"+href['href'],
-                    'title' : href2, 
-                    'uploader' : uploader.text,
-                    }
-                vid_id +=1
-            except: pass 
+    global main_data 
+    title = []
+    vid_id = 0
+    vid_length = []
+    vid_uploader = []
+    temp_list = []
+    upload_date = []
+    vid_views = []
+    vid_url = []
+
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('--disable-gpu')
+    driver = webdriver.Chrome(options=options)
+    current.config(text='Opening Webpage')
+    driver.get('https://www.youtube.com/results?search_query='+'+'.join(search.split()))
+    current.config(text='Waiting')
+    sleep(3)
+    for i in driver.find_elements_by_class_name('style-scope ytd-video-renderer'):
+        current.config(text='Getting Title')
+        title.append(i.find_element_by_id('video-title').find_element_by_tag_name('yt-formatted-string').get_attribute('innerHTML')[:40]+'...')
+        current.config(text='Getting Video Length')
+        vid_length.append(i.find_element_by_class_name('style-scope ytd-thumbnail').find_element_by_tag_name('span').get_attribute('innerHTML').strip())
+        current.config(text='Getting Video Uploader')
+        vid_uploader.append(i.find_element_by_class_name('style-scope ytd-channel-name').find_element_by_tag_name('a').get_attribute('innerHTML'))
+        current.config(text='Getting Video Metadata')
+        for i2 in (i.find_element_by_id('metadata-line').find_elements_by_tag_name('span')):
+            temp_list.append(i2.get_attribute('innerHTML'))
+        current.config(text='Getting Video Url')
+        vid_url.append(i.find_element_by_id('video-title').get_attribute('href'))
+    vid_views = temp_list[::2]
+    upload_date = temp_list[1::2]
+        
+    driver.close()
+    
+    temp_main_data =  list(enumerate(list(zip(vid_url, title, vid_length, vid_uploader, vid_views, upload_date))))
+    print(temp_main_data)
+    for i in range(len(temp_main_data)):
+        temp_main_data[i] = list(temp_main_data[i])
+        temp_main_data[i][0] += 1
+        
+
+    main_data = [i for i in temp_main_data if ':' in i[1][2]]
 
 #downlaod the video
 def download_vid(vidid_to_download, result):
@@ -77,11 +92,11 @@ def download_vid(vidid_to_download, result):
         quit_button['background'] = '#252525'
         quit_button['fg'] = 'white'
     
-    url_to_download = result[vidid_to_download]['url']
+    url_to_download = result[vidid_to_download-1][1][0]
     root.destroy()
     pw = Tk()
-    titlefont = Font(size=20, family='Consolas')
-    buttonfont = Font(size=15, family='Bahnschrift SemiBold')
+    titlefont = Font(size=20, family='Gotham')
+    buttonfont = Font(size=15, family='Gotham')
     vid_title = YouTube(url_to_download).title
     pw.resizable(False, False)
     pw.config(bg="#252525")
@@ -128,10 +143,14 @@ def download_vid(vidid_to_download, result):
 #show the result page
 def searchvideo():
 
+    global main_data, current
+
+    main_data = []
+
     #prepare to downlaod
     def proceed():
         
-        proceedid = str(int(id_search_input.get()))
+        proceedid = int(id_search_input.get())
         download_vid(proceedid, main_data)
     
     search_keyword = search_input.get()
@@ -140,11 +159,12 @@ def searchvideo():
         ms.showwarning('WARNING', 'Don\'t left the search box blank!')
     else:
         try:
-            try:
-                SearchVid(search_keyword)
-            except:
-                ms.showwarning('ERROR','An error occured due to Internet connection problem')
-                return
+            current = Label(root, text='', bg='#252525', fg='white')
+            current.place(x=225, y=300, anchor='center')
+            x = threading.Thread(target=SearchVid, args=(search_keyword, ))
+            x.start()
+            while not main_data:
+                root.update()
                 
             searchframe.place_forget()
             search_input.place_forget()
@@ -169,11 +189,11 @@ def searchvideo():
                 if value == 'ID':
                     proceed_btn.place_forget()
                     proceed_btn.config(state=DISABLED)
-                    proceed_btn.place(x=361,y=401)
+                    proceed_btn.place(x=361,y=441, width=202, height=50)
                 if len(value) < 2:
                     proceed_btn.place_forget()
                     proceed_btn.config(state=DISABLED)
-                    proceed_btn.place(x=361,y=401)
+                    proceed_btn.place(x=361,y=441, width=202, height=50)
                     try:
                         int(value)
                     except:
@@ -182,7 +202,7 @@ def searchvideo():
                     videoinput_id.set(value[:2])
                     proceed_btn.place_forget()
                     proceed_btn.config(state=NORMAL)
-                    proceed_btn.place(x=361,y=401)
+                    proceed_btn.place(x=361,y=441, width=202, height=50)
                     if len(value) == 2 and value !='ID':
                         try:
                             int(value)
@@ -191,11 +211,11 @@ def searchvideo():
                             videoinput_id.set(value[:1])
                             proceed_btn.place_forget()
                             proceed_btn.config(state=DISABLED)
-                            proceed_btn.place(x=361,y=401)
+                            proceed_btn.place(x=361,y=441, width=202, height=50)
                 else:
                     proceed_btn.place_forget()
                     proceed_btn.config(state=DISABLED)
-                    proceed_btn.place(x=361,y=401)
+                    proceed_btn.place(x=361,y=441, width=202, height=50)
 
             def pbutton_on_enter(e):
                 proceed_btn['background'] = '#565656'
@@ -211,25 +231,15 @@ def searchvideo():
             title.place_forget()
             titleicon.place_forget()
             scrollbar = Scrollbar(root)
-            titleshowframe = Frame(root, width=876, height=108,background = '#00FFFF', borderwidth = 1, relief = FLAT)
-            mylist = Listbox(root, yscrollcommand=scrollbar.set, selectmode=BROWSE, highlightthickness=0, selectbackground='#252525',selectborderwidth=0, width=58, fg='white', relief=FLAT, height=3, font=frameFont, bg='#252525')
-            scrollbar.config(command=mylist.yview)
-
-            try:
-                for i in range(len(main_data)-1):
-                    if i <10:
-                        mylist.insert(END, ('  ID:                 '+'0'+str(i)))
-                    else:
-                        mylist.insert(END, ('  ID:                 '+str(i)))
-                    mylist.insert(END, ('  title:              '+main_data[str(i)]['title']))
-                    mylist.insert(END, ('  uploader:     '+main_data[str(i)]['uploader']))
-                    mylist.insert(END,'\n')
-                mylist.insert(END, ('  ID:                 '+str(len(main_data)-1)))
-                mylist.insert(END, ('  title:              '+main_data[str(len(main_data)-1)]['title']))
-                mylist.insert(END, ('  uploader:     '+main_data[str(len(main_data)-1)]['uploader']))
-            except:
-                ms.showwarning('ERROR', 'some error happened. Please restart your program')
-                root.destroy()
+            titleshowframe = Frame(root, width=876, height=142,background = '#00FFFF', borderwidth = 1, relief = FLAT)
+            result_list = Listbox(root, yscrollcommand=scrollbar.set, selectmode=BROWSE, highlightthickness=0, selectbackground='#252525',selectborderwidth=0, width=58, fg='white', relief=FLAT, height=4, font=frameFont, bg='#252525')
+            scrollbar.config(command=result_list.yview)
+            
+            for i in main_data:
+                result_list.insert(END, i[0])
+                result_list.insert(END, i[1][1])
+                result_list.insert(END, i[1][2])
+                result_list.insert(END, i[1][3])
 
             instrulabel = Label(root, font = instrufont, bg='#252525', fg='white', text='Scroll on the listbox above to explore the search results\nEnter the video id into entry below and press proceed')
             id_searchframe = Frame(root, width=409, height=62,background='#00FFFF', borderwidth=1)
@@ -246,23 +256,21 @@ def searchvideo():
                 text='PROCEED',
                 state=DISABLED,
                 font=buttonfont,
-                padx=50,
-                pady=5,
                 bg='#252525',
                 relief=FLAT)
 
             titleicon.place(x=245,y=15)
             title.place(x=295,y=20)
             titleshowframe.place(x=20, y=79)
-            mylist.place(x=22,y=81)
-            instrulabel.place(x=110, y=210)
-            id_searchframe.place(x=255,y=300)
-            id_search_input.place(x=256,y=301, height=60)
+            result_list.place(x=22,y=81)
+            instrulabel.place(x=110, y=250)
+            id_searchframe.place(x=255,y=340)
+            id_search_input.place(x=256,y=341, height=60)
             id_search_input.insert(0, 'ID')
             id_search_input.configure(state=DISABLED)
             id_on_click_id = id_search_input.bind('<Button-1>', id_on_click)
-            pbuttoninputframe.place(x=360,y=400)
-            proceed_btn.place(x=361,y=401)
+            pbuttoninputframe.place(x=360,y=440)
+            proceed_btn.place(x=361,y=441, width=202, height=50)
             proceed_btn.bind("<Enter>", pbutton_on_enter)
             proceed_btn.bind("<Leave>", pbutton_on_leave)
         except:
@@ -320,8 +328,6 @@ def main_menu():
         activeforeground='white',
         fg='white',text='SEARCH',
         font=buttonfont,
-        padx=50,
-        pady=5,
         bg='#252525',
         relief=FLAT)
     
@@ -334,8 +340,6 @@ def main_menu():
         fg='white',
         text='QUIT',
         font=buttonfont,
-        padx=67,
-        pady=5,
         bg='#252525',
         relief=FLAT)
 
@@ -344,9 +348,9 @@ def main_menu():
     searchframe.place(x=20,y=100)
     search_input.place(x=21,y=101, height=45)
     submitbuttoninputframe.place(x=125,y=170)
-    submit_button.place(x=126.45,y=171.45)
+    submit_button.place(x=126.45,y=171.45, width=191, height=50)
     quitbuttoninputframe.place(x=125,y=230)
-    quit_button.place(x=126.45,y=231.45)
+    quit_button.place(x=126.45,y=231.45, width=191, height=50)
     submit_button.bind("<Enter>", button_on_enter)
     submit_button.bind("<Leave>", button_on_leave)
     search_input.insert(0, 'keyword here')
@@ -361,7 +365,7 @@ if __name__ == '__main__':
         global root
 
         root = Tk()
-        root.geometry('450x300')
+        root.geometry('450x330')
         root.config(bg='#252525')
         root.resizable(False,False)
         root.title('YouTube Video Downloader')
@@ -376,12 +380,12 @@ if __name__ == '__main__':
         frameFont = Font(size=20, family='Bahnschrift Light')
         inputfont = Font(size=20, family='Bahnschrift Light')
         titlefont = Font(size=20, family='Consolas')
-        buttonfont = Font(size=15, family='Bahnschrift SemiBold')
+        buttonfont = Font(size=15)
         instrufont = Font(size=20, family='Bahnschrift SemiLight')
 
         mainicon = ImageTk.PhotoImage(Image.open("mainicon.png"))
         main_menu()
         root.mainloop()
     except:
-        ctypes.windll.user32.MessageBoxW(0,'Please check your internet connection','Internet Connection Error',0|0x10)
+        raise
         quit()
