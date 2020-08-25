@@ -70,7 +70,7 @@ def download_vid(vidid_to_download, result):
     def start():
         global file_size
         video = YouTube(url_to_download, on_progress_callback=progress_Check)
-        video_type = video.streams.filter(progressive = True, file_extension = "mp4").first()
+        video_type = video.streams.filter(progressive = True, file_extension = "mp4").last()
         file_size = video_type.filesize
         video_type.download('Downloads')
 
@@ -97,7 +97,7 @@ def download_vid(vidid_to_download, result):
     pw = Tk()
     titlefont = Font(size=20, family='Gotham')
     buttonfont = Font(size=15, family='Gotham')
-    vid_title = YouTube(url_to_download).title
+    vid_title = YouTube(url_to_download).title.encode('utf-8')
     pw.resizable(False, False)
     pw.config(bg="#252525")
     pw.geometry('650x300')
@@ -389,3 +389,4 @@ if __name__ == '__main__':
     except:
         raise
         quit()
+
