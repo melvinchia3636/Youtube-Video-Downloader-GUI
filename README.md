@@ -1,5 +1,5 @@
 # Youtube-Video-Downloader-GUI
-A Python GUI project\n
+A Python GUI project
 feel free to use
 
 ### update 4/5/2020
