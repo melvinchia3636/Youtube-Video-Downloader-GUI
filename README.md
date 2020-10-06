@@ -1,7 +1,6 @@
 # Youtube-Video-Downloader-GUI
-A Python GUI project
+A Python GUI project\n
 feel free to use
-executable download link: https://drive.google.com/file/d/1olqYUMExnhphdTKifPvhkwn_NsYCKRpa/view?usp=sharing
 
 ### update 4/5/2020
   - added download progress bar
