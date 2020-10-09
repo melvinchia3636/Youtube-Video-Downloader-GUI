@@ -8,16 +8,6 @@ import ctypes #to show message box
 from time import sleep
 import requests
 import threading
-from tkinter import * #import tkinter for the main GUI design
-from tkinter.font import Font #import this to make the font look cooler
-import tkinter.messagebox as ms
-import tkinter.ttk as ttk #for the progressbar ONLY
-from PIL import ImageTk, Image #import this to load the image
-from pytube import YouTube #to download Youtube data
-import ctypes #to show message box
-from time import sleep
-import requests
-import threading
 import googleapiclient.discovery
 
 #get the videos data from youtube
