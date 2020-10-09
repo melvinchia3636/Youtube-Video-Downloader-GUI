@@ -32,7 +32,7 @@ def SearchVid(search):
     request = youtube.search().list(
         part="snippet",
         maxResults=25,
-        q="HermitCraft"
+        q=search
     )
     response = request.execute()
 
