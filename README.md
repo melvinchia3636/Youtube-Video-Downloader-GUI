@@ -19,3 +19,8 @@ feel free to use
 
 ### update 6/10/2020
   - chromedriver updated
+
+### update 10/10/2020
+  - chromedriver removed
+  - data collecting module changed to Google YouTube API
+  - searching speed increased apparently
