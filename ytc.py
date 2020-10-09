@@ -5,8 +5,6 @@ import tkinter.ttk as ttk #for the progressbar ONLY
 from PIL import ImageTk, Image #import this to load the image
 from pytube import YouTube #to download Youtube data
 import ctypes #to show message box
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from time import sleep
 import requests
 import threading
