@@ -3,12 +3,15 @@ from tkinter.font import Font #import this to make the font look cooler
 import tkinter.messagebox as ms
 import tkinter.ttk as ttk #for the progressbar ONLY
 from PIL import ImageTk, Image #import this to load the image
-from pytube import YouTube #to download Youtube data
+#from custom_pytube import YouTube #to download Youtube data
 import ctypes #to show message box
 from time import sleep
 import requests
 import threading
-import googleapiclient.discovery
+from bs4 import BeautifulSoup
+import re
+import json
+import youtube_dl
 
 #get the videos data from youtube
 def SearchVid(search):
@@ -16,56 +19,36 @@ def SearchVid(search):
     global main_data 
     title = []
     vid_id = 0
+    vid_length = []
     vid_uploader = []
     temp_list = []
     upload_date = []
     vid_views = []
     vid_url = []
+    raw = [i['videoRenderer'] for i in json.loads(re.findall(r'var ytInitialData = (.*?)</script>', str(BeautifulSoup(requests.get('https://www.youtube.com/results?search_query='+'+'.join(search.split())).content.decode('utf-8', 'ignore'), 'lxml')))[0][:-1])['contents']['twoColumnSearchResultsRenderer']["primaryContents"]['sectionListRenderer']['contents'][-2]['itemSectionRenderer']['contents'] if 'videoRenderer' in i]
 
-    api_service_name = "youtube"
-    api_version = "v3"
-    DEVELOPER_KEY = "AIzaSyAyIDPArq8LQ36l5hRIuhn9n7elVfDr1RI"
-
-    youtube = googleapiclient.discovery.build(
-        api_service_name, api_version, developerKey = DEVELOPER_KEY)
-
-    request = youtube.search().list(
-        part="snippet",
-        maxResults=25,
-        q=search
-    )
-    response = request.execute()
-
-    for i in response['items']:
-        if i['id']['kind'] == 'youtube#video':
-            vid_url.append(i['id']['videoId'])
-            title.append(i['snippet']['title'])
-            vid_uploader.append(i['snippet']['channelTitle'])
-            upload_date.append(i['snippet']['publishTime'])
-    
-    temp_main_data =  list(enumerate(list(zip(vid_url, title, vid_uploader, upload_date))))
-    for i in range(len(temp_main_data)):
-        temp_main_data[i] = list(temp_main_data[i])
-        temp_main_data[i][0] += 1
-        
-
-    main_data = temp_main_data
+    for i in raw:
+        temp_list.append({
+                'id': i["videoId"],
+                'title': i['title']['runs'][0]['text'],
+                'uploader': i['ownerText']['runs'][0]['text'],
+                'description': ''.join(j['text'] for j in i['descriptionSnippet']['runs']) if 'descriptionSnippet' in i else '',
+                'length': i['lengthText']['simpleText'] if 'lengthText' in i else '',
+                'upload_time': i['publishedTimeText']['simpleText'] if 'publishedTimeText' in i else '',
+                'view_count': i['viewCountText']['simpleText'] if 'viewCountText' in i and 'simpleText' in i['viewCountText'] else ''
+            })
+    main_data = temp_list
 
 #downlaod the video
 def download_vid(vidid_to_download, result):
-    global file_size
-    def progress_Check(stream = None, chunk = None,remaining = None): 
-        percent = (100*(file_size-remaining))/file_size
-        progressbar['value']=percent
-        pw.update()
-
     #start download
     def start():
         global file_size
-        video = YouTube('www.youtube.com?v='+url_to_download, on_progress_callback=progress_Check)
-        video_type = video.streams.filter(progressive = True, file_extension = "mp4").last()
-        file_size = video_type.filesize
-        video_type.download('Downloads')
+        try:
+            with youtube_dl.YoutubeDL({'include_ads': False, 'format': 'best'}) as ydl:
+                ydl.download([url_to_download]) 
+        except:
+            start()
 
     global url_to_download
     global filesize
@@ -85,23 +68,23 @@ def download_vid(vidid_to_download, result):
         quit_button['background'] = '#252525'
         quit_button['fg'] = 'white'
     
-    url_to_download = result[vidid_to_download-1][1][0]
+    url_to_download = 'https://www.youtube.com/watch?v='+main_data[vidid_to_download-1]['id']
     root.destroy()
     pw = Tk()
     titlefont = Font(size=20, family='Gotham')
     buttonfont = Font(size=15, family='Gotham')
-    vid_title = YouTube('www.youtube.com?v='+url_to_download).title.encode('utf-8')
     pw.resizable(False, False)
     pw.config(bg="#252525")
     pw.geometry('650x300')
-    pw.iconbitmap('icon.ico')
+    pw.iconbitmap('assets/icon.ico')
     pw.title('Youtube Video Downloader')
     s = ttk.Style()
     s.theme_use('clam')
+    print(s.theme_names())
     TROUGH_COLOR = '#252525'
     BAR_COLOR = '#00FFFF'
     s.configure("green.flat.Horizontal.TProgressbar", troughcolor=TROUGH_COLOR, bordercolor=BAR_COLOR, background=BAR_COLOR, lightcolor=BAR_COLOR, darkcolor=BAR_COLOR, borderwidth=0)
-    title = Label(pw, text=vid_title,wraplength=500, font=titlefont, bg='#252525', fg = 'white')
+    title = Label(pw, text='', wraplength=500, font=titlefont, bg='#252525', fg = 'white')
     progressbar=ttk.Progressbar(pw, style="green.flat.Horizontal.TProgressbar",orient="horizontal",length=600,mode="determinate")
     title.grid(row=0, column=0)
     progressbar.grid(row=1,column=0, ipady=10, padx=25, pady=20)
@@ -114,7 +97,7 @@ def download_vid(vidid_to_download, result):
     start()
     label.grid_forget()
     label = Label(pw, text='Download completed', font=titlefont, bg='#252525', fg = 'white').grid(row=2,column=0)
-    quitbuttoninputframe = Frame(pw, width=211.45, height=52.45, background='#00FFFF', borderwidth=1.45)
+    quitbuttoninputframe = Frame(pw, width=224, height=50.45, background='#00FFFF', borderwidth=1.45)
     quit_button = Button(
         pw,
         activebackground='#565656',
@@ -146,7 +129,6 @@ def searchvideo():
         download_vid(proceedid, main_data)
     
     search_keyword = search_input.get()
-    print(search_keyword)
     if search_keyword == '' or search_keyword == 'keyword here':
         ms.showwarning('WARNING', 'Don\'t left the search box blank!')
     else:
@@ -173,41 +155,13 @@ def searchvideo():
                 id_search_input.unbind('<Button-1>', id_on_click_id)
 
             def limiturlinput(*args):
-                value = id_search_input.get()
-                try:
-                    int(value)
-                except:
-                    videoinput_id.set(value[:0])
-                if value == 'ID':
-                    proceed_btn.place_forget()
-                    proceed_btn.config(state=DISABLED)
-                    proceed_btn.place(x=361,y=441, width=202, height=50)
-                if len(value) < 2:
-                    proceed_btn.place_forget()
-                    proceed_btn.config(state=DISABLED)
-                    proceed_btn.place(x=361,y=441, width=202, height=50)
-                    try:
-                        int(value)
-                    except:
-                        videoinput_id.set(value[:0])
-                elif len(value) >= 2:
-                    videoinput_id.set(value[:2])
-                    proceed_btn.place_forget()
+                value = videoinput_id.get()
+                if value.isdigit() and len(value) == 2 and 1<= int(value) <= len(main_data):
                     proceed_btn.config(state=NORMAL)
-                    proceed_btn.place(x=361,y=441, width=202, height=50)
-                    if len(value) == 2 and value !='ID':
-                        try:
-                            int(value)
-                            videoinput_id.set(str(len(main_data)-1)) if int(value) > len(main_data) else videoinput_id
-                        except:
-                            videoinput_id.set(value[:1])
-                            proceed_btn.place_forget()
-                            proceed_btn.config(state=DISABLED)
-                            proceed_btn.place(x=361,y=441, width=202, height=50)
+                    root.update()
                 else:
-                    proceed_btn.place_forget()
                     proceed_btn.config(state=DISABLED)
-                    proceed_btn.place(x=361,y=441, width=202, height=50)
+                    root.update()
 
             def pbutton_on_enter(e):
                 proceed_btn['background'] = '#565656'
@@ -218,7 +172,7 @@ def searchvideo():
                 proceed_btn['fg'] = 'white'
 
             videoinput_id = StringVar()
-            videoinput_id.trace('w', limiturlinput)
+            videoinput_id.trace_add('write', limiturlinput)
 
             title.place_forget()
             titleicon.place_forget()
@@ -226,12 +180,13 @@ def searchvideo():
             titleshowframe = Frame(root, width=876, height=142,background = '#00FFFF', borderwidth = 1, relief = FLAT)
             result_list = Listbox(root, yscrollcommand=scrollbar.set, selectmode=BROWSE, highlightthickness=0, selectbackground='#252525',selectborderwidth=0, width=58, fg='white', relief=FLAT, height=4, font=frameFont, bg='#252525')
             scrollbar.config(command=result_list.yview)
-            
+            vid_id = 1 
             for i in main_data:
-                result_list.insert(END, i[0])
-                result_list.insert(END, i[1][1])
-                result_list.insert(END, i[1][2])
-                result_list.insert(END, i[1][3])
+                result_list.insert(END, 'video ID: '+str(vid_id))
+                result_list.insert(END, 'title: '+i['title'])
+                result_list.insert(END, 'video length: '+i['length'])
+                result_list.insert(END, 'upload time: '+i['upload_time'])
+                vid_id+=1
 
             instrulabel = Label(root, font = instrufont, bg='#252525', fg='white', text='Scroll on the listbox above to explore the search results\nEnter the video id into entry below and press proceed')
             id_searchframe = Frame(root, width=409, height=62,background='#00FFFF', borderwidth=1)
@@ -361,7 +316,7 @@ if __name__ == '__main__':
         root.config(bg='#252525')
         root.resizable(False,False)
         root.title('YouTube Video Downloader')
-        root.iconbitmap('icon.ico')
+        root.iconbitmap('assets/icon.ico')
 
         global titlefont
         global inputfont
@@ -375,9 +330,10 @@ if __name__ == '__main__':
         buttonfont = Font(size=15)
         instrufont = Font(size=20, family='Bahnschrift SemiLight')
 
-        mainicon = ImageTk.PhotoImage(Image.open("mainicon.png"))
+        mainicon = ImageTk.PhotoImage(Image.open("assets/mainicon.png"))
         main_menu()
         root.mainloop()
     except:
         raise
         quit()
+
