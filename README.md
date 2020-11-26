@@ -24,3 +24,6 @@ feel free to use
   - chromedriver removed
   - data collecting module changed to Google YouTube API
   - searching speed increased apparently
+
+### update 26/11/2020
+  - bug fixed for youtube source code structure changes
