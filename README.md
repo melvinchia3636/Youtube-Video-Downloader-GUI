@@ -27,3 +27,6 @@ feel free to use
 
 ### update 26/11/2020
   - bug fixed for youtube source code structure changes
+
+# announcement 12/12/2020
+  - seen like YouTube is trying their best to prevent us from downloading their videos, and all the video downloading modules for Python is broken. I'll give this app an update as soon as they fixed the problem.
